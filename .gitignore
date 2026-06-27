@@ -157,6 +157,15 @@ ENV/
 env.bak/
 venv.bak/
 
+# PokeBuy local runtime
+.DS_Store
+.env.*
+!.env.example
+.pokebuy/
+*.sqlite
+*.sqlite3
+*.db
+
 # Spyder project settings
 .spyderproject
 .spyproject
