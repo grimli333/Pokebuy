@@ -33,12 +33,14 @@ Acceptance checks:
 - [x] Implement `httpx` product fetcher with timeout, retries, and rate-limit hooks.
 - [x] Implement parser interface for normalized `ProductObservation` output.
 - [x] Add first Pokemon Center product parser using fixture-driven tests.
-- [ ] Add Playwright fallback collector for rendered page inspection.
+- [x] Add Playwright fallback collector for rendered page inspection.
+- [x] Add persistent browser profile warm-up command for manual login/challenge capture.
 - [x] Store snapshot fetch status and error details.
 - [x] Add CLI command `pokebuy scrape-url <url>`.
 - [x] Add sanitized fixtures for `in_stock` and `out_of_stock` states.
 - [x] Add fixture coverage for bot-protection `blocked` responses.
 - [ ] Add sanitized fixtures for `unknown` and `not_found` states.
+- [ ] Verify live Pokemon Center browser collection using the warmed persistent profile.
 - [x] Keep Milestone 1 product monitoring limited to specific product URLs.
 
 Acceptance checks:

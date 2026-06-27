@@ -4,7 +4,7 @@ Last updated: 2026-06-27
 
 ## Current Status
 
-PokeBuy has completed Phase 0 foundation work and started Milestone 1. Direct HTTP product scraping, parser fixtures, SQLite persistence, migrations, and the `scrape-url` CLI are implemented. Browser fallback, scheduler polling, notifications, browser automation, and the web UI have not been implemented yet.
+PokeBuy has completed Phase 0 foundation work and started Milestone 1. Direct HTTP product scraping, rendered-browser scraping, persistent browser profile warming, parser fixtures, SQLite persistence, migrations, and the `scrape-url` CLI are implemented. Reliable live Pokemon Center product extraction still needs verification with a warmed browser profile. Scheduler polling, notifications, cart automation, and the web UI have not been implemented yet.
 
 Completed work:
 
@@ -23,6 +23,8 @@ Completed work:
 - Added product URL normalization for Pokemon Center product URLs.
 - Added `httpx` fetcher with blocked-response detection.
 - Added Pokemon Center HTML/JSON-LD parser with fixture tests.
+- Added Playwright rendered-browser collector with headed/manual-wait support.
+- Added `pokebuy warm-session` to capture a persistent browser profile and storage state after manual login/challenge handling.
 - Added SQLite repository persistence for successful and failed snapshots.
 - Added `pokebuy migrate` and `pokebuy scrape-url` CLI commands.
 
@@ -31,7 +33,7 @@ Completed work:
 | Milestone | Status | Notes |
 | --- | --- | --- |
 | Phase 0: Project foundation | Complete | Package scaffold, config, logging, tooling, and smoke tests are in place. |
-| Milestone 1: Reading Pokemon Center data | In progress | Direct HTTP collector, parser fixtures, SQLite persistence, migrations, and CLI are implemented. Playwright fallback and extra fixtures remain. |
+| Milestone 1: Reading Pokemon Center data | In progress | Direct HTTP collector, Playwright collector, persistent profile warming, parser fixtures, SQLite persistence, migrations, and CLI are implemented. Live product extraction still needs warmed-profile verification. |
 | Milestone 2: Triggering notifications | Not started | Email is first, followed by Discord bot notifications. |
 | Milestone 3: Login and cart assistance | Not started | Designed as Playwright-based and explicitly opt-in. Should also discover related Pokemon card products. |
 | Milestone 4: Graphical web UI | Not started | Designed as FastAPI, Jinja, HTMX, and charting pages. |
@@ -76,8 +78,9 @@ Latest verification:
 - `uv run ruff check .`: passed.
 - `uv run ruff format --check .`: passed.
 - `uv run mypy`: passed.
-- `uv run pytest`: passed, 11 tests.
+- `uv run pytest`: passed, 12 tests.
 - Direct HTTP against both provided Pokemon Center URLs returned bot-protection HTML and was persisted as `blocked` snapshots.
+- Browser scraping launches through Playwright. In headless verification, Pokemon Center still returned non-product HTML, so the persisted snapshot remains `unknown` until the collector can use a cleared session or manual challenge handling.
 
 ## Open Questions for User
 
@@ -87,7 +90,7 @@ Latest verification:
 
 Continue Milestone 1 from `doc/TODO.md`:
 
-- Add Playwright fallback collection for rendered page inspection.
 - Add sanitized `unknown` and `not_found` parser/fetch fixtures.
-- Use a real browser session to discover whether product data is available after normal JavaScript and bot-protection handling.
+- Use `pokebuy warm-session` to clear/login in the persistent profile, then retry `scrape-url --collector browser --use-profile`.
+- Improve browser collection around queue/challenge/session reuse based on the warmed-profile result.
 - Keep scheduler and notification behavior deferred until the collection path is reliable enough.

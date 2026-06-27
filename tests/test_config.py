@@ -11,7 +11,11 @@ def test_settings_defaults() -> None:
 
     assert settings.env == "dev"
     assert settings.data_dir == Path(".pokebuy")
+    assert settings.browser_profile_dir == Path(".pokebuy/browser-profile")
     assert settings.poll_min_seconds == 30.0
+    assert settings.browser_timeout_seconds == 45.0
+    assert settings.browser_manual_wait_seconds == 0.0
+    assert settings.browser_headless is False
     assert settings.auto_cart_enabled is False
     assert settings.auto_checkout_enabled is False
 

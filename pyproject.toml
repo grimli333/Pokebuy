@@ -8,6 +8,7 @@ dependencies = [
     "alembic>=1.17.0",
     "beautifulsoup4>=4.14.0",
     "httpx>=0.28.0",
+    "playwright>=1.56.0",
     "pydantic>=2.12.0",
     "pydantic-settings>=2.12.0",
     "python-dotenv>=1.2.0",

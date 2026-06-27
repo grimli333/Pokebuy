@@ -21,9 +21,13 @@ class Settings(BaseSettings):
     secret_key: SecretStr = Field(default=SecretStr("change-me-for-local-development"))
     data_dir: Path = Path(".pokebuy")
     browser_state_dir: Path = Path(".pokebuy/browser-state")
+    browser_profile_dir: Path = Path(".pokebuy/browser-profile")
 
     poll_min_seconds: float = 30.0
     http_timeout_seconds: float = 20.0
+    browser_timeout_seconds: float = 45.0
+    browser_manual_wait_seconds: float = 0.0
+    browser_headless: bool = False
 
     discord_webhook_url: SecretStr | None = None
     smtp_host: str | None = None
@@ -36,11 +40,23 @@ class Settings(BaseSettings):
     auto_cart_enabled: bool = False
     auto_checkout_enabled: bool = False
 
-    @field_validator("poll_min_seconds", "http_timeout_seconds")
+    @field_validator(
+        "poll_min_seconds",
+        "http_timeout_seconds",
+        "browser_timeout_seconds",
+    )
     @classmethod
     def positive_duration(cls, value: float) -> float:
         if value <= 0:
             msg = "duration must be greater than zero"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("browser_manual_wait_seconds")
+    @classmethod
+    def non_negative_duration(cls, value: float) -> float:
+        if value < 0:
+            msg = "duration must not be negative"
             raise ValueError(msg)
         return value
 

@@ -88,9 +88,11 @@ class PokemonCenterFetcher:
 def is_blocked_response(status_code: int, headers: dict[str, str], body: str) -> bool:
     lower_headers = {key.lower(): value for key, value in headers.items()}
     lower_body = body.lower()
-    return status_code == 403 and (
+    has_block_evidence = (
         "x-datadome" in lower_headers
         or "captcha-delivery.com" in lower_body
         or "please enable js" in lower_body
         or "datadome" in lower_body
+        or "enable javascript" in lower_body
     )
+    return has_block_evidence or status_code == 403

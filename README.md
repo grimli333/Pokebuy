@@ -28,6 +28,33 @@ cp .env.example .env
 
 Runtime data defaults to `.pokebuy/`, which is ignored by git.
 
+## Example Scrape Commands
+
+Direct HTTP scrape:
+
+```sh
+uv run pokebuy scrape-url "https://www.pokemoncenter.com/product/10-10318-142/pokemon-tcg-mega-evolution-ascended-heroes-mini-tin-togepi-and-totodile"
+```
+
+Browser scrape with a visible browser and a 60-second manual window for queue or challenge handling:
+
+```sh
+uv run pokebuy scrape-url --collector browser --no-headless --manual-wait-seconds 60 "https://www.pokemoncenter.com/product/10-10318-142/pokemon-tcg-mega-evolution-ascended-heroes-mini-tin-togepi-and-totodile"
+```
+
+Warm and reuse a persistent browser profile:
+
+```sh
+uv run pokebuy warm-session --no-headless --manual-wait-seconds 300 "https://www.pokemoncenter.com/"
+uv run pokebuy scrape-url --collector browser --use-profile --no-headless --manual-wait-seconds 30 "https://www.pokemoncenter.com/product/10-10318-142/pokemon-tcg-mega-evolution-ascended-heroes-mini-tin-togepi-and-totodile"
+```
+
+Install Playwright's browser runtime if needed:
+
+```sh
+uv run playwright install chromium
+```
+
 ## Safety Defaults
 
 - PokeBuy starts local-first.
@@ -44,6 +71,7 @@ Runtime data defaults to `.pokebuy/`, which is ignored by git.
 - The practical target is detecting availability changes within one minute.
 - The configuration supports sub-second polling intervals for future experiments, but high-frequency polling needs rate-limit detection and explicit safeguards before use.
 - Username/password storage is allowed if it works, but it must use local secret handling and must never be committed.
+- Browser login/challenge state is captured in `.pokebuy/browser-profile/` and `.pokebuy/browser-state/`, both ignored by git.
 - Email notifications come first, then Discord bot notifications.
 - SQLite is the default database for the foreseeable future.
 
