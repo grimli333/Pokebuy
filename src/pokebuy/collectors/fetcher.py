@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-import httpx
+from curl_cffi import requests as curl_requests
 
 from pokebuy.config import Settings
 from pokebuy.models import FetchStatus
@@ -24,19 +24,16 @@ class PokemonCenterFetcher:
         headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
-            ),
         }
         try:
-            with httpx.Client(
-                follow_redirects=True,
-                timeout=self._settings.http_timeout_seconds,
+            response = curl_requests.get(
+                url,
+                impersonate="chrome",
                 headers=headers,
-            ) as client:
-                response = client.get(url)
-        except httpx.HTTPError as exc:
+                timeout=self._settings.http_timeout_seconds,
+                allow_redirects=True,
+            )
+        except Exception as exc:
             return FetchResult(
                 url=url,
                 status_code=None,
@@ -46,7 +43,7 @@ class PokemonCenterFetcher:
                 headers={},
             )
 
-        response_headers = dict(response.headers)
+        response_headers = {str(k): str(v) for k, v in response.headers.items() if v is not None}
         blocked = is_blocked_response(response.status_code, response_headers, response.text)
         if blocked:
             return FetchResult(
@@ -66,7 +63,7 @@ class PokemonCenterFetcher:
                 fetch_error="product page returned 404",
                 headers=response_headers,
             )
-        if response.is_error:
+        if response.status_code >= 400:
             return FetchResult(
                 url=str(response.url),
                 status_code=response.status_code,
