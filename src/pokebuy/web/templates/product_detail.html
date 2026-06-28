@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Product - PokeBuy{% endblock %}
+{% block content %}
+  <section class="page-head product-head">
+    <div>
+      <h1>{{ product.title or product.source_product_id }}</h1>
+      <p>{{ product.source_product_id }} · {{ product.observed_at|datetime }}</p>
+    </div>
+    <a class="button" href="{{ product.url }}" rel="noreferrer" target="_blank">Open Source</a>
+  </section>
+
+  <section class="product-layout">
+    <div class="product-media">
+      {% if product.image_url %}
+        <img src="{{ product.image_url }}" alt="">
+      {% else %}
+        <div class="empty-media">No Image</div>
+      {% endif %}
+    </div>
+    <dl class="facts">
+      <div>
+        <dt>Availability</dt>
+        <dd><span class="status status-{{ product.availability }}">{{ product.availability|label }}</span></dd>
+      </div>
+      <div>
+        <dt>Price</dt>
+        <dd>{{ product.price_cents|money(product.currency) }}</dd>
+      </div>
+      <div>
+        <dt>Fetch Status</dt>
+        <dd><span class="status status-{{ product.fetch_status }}">{{ product.fetch_status|label }}</span></dd>
+      </div>
+      <div>
+        <dt>Last Error</dt>
+        <dd>{{ product.fetch_error or "-" }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section>
+    <div class="section-title">
+      <h2>Snapshot History</h2>
+    </div>
+    {% set events = snapshots %}
+    {% include "partials/event_table.html" %}
+  </section>
+{% endblock %}

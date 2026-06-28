@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Settings - PokeBuy{% endblock %}
+{% block content %}
+  <section class="page-head">
+    <div>
+      <h1>Settings</h1>
+      <p>Runtime configuration visible to the local web process.</p>
+    </div>
+  </section>
+
+  <section>
+    <table class="data-table settings-table">
+      <tbody>
+        <tr><th>Environment</th><td>{{ settings.env }}</td></tr>
+        <tr><th>Database</th><td>{{ settings.database_url }}</td></tr>
+        <tr><th>Data Directory</th><td>{{ settings.data_dir }}</td></tr>
+        <tr><th>Browser Profile</th><td>{{ settings.browser_profile_dir }}</td></tr>
+        <tr><th>Poll Minimum</th><td>{{ settings.poll_min_seconds }} seconds</td></tr>
+        <tr><th>HTTP Timeout</th><td>{{ settings.http_timeout_seconds }} seconds</td></tr>
+        <tr><th>Browser Timeout</th><td>{{ settings.browser_timeout_seconds }} seconds</td></tr>
+        <tr><th>Debug Enabled</th><td>{{ settings.debug_enabled }}</td></tr>
+        <tr><th>Debug Directory</th><td>{{ settings.debug_dir }}</td></tr>
+        <tr><th>Log File</th><td>{{ settings.log_file_path if settings.log_file_enabled else "Disabled" }}</td></tr>
+        <tr><th>Auto Cart</th><td>{{ settings.auto_cart_enabled }}</td></tr>
+        <tr><th>Auto Checkout</th><td>{{ settings.auto_checkout_enabled }}</td></tr>
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

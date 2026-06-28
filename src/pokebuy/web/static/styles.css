@@ -1,0 +1,371 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef2f5;
+  --text: #17202a;
+  --muted: #667085;
+  --border: #d8dee6;
+  --accent: #0f6c81;
+  --accent-strong: #084e5f;
+  --good-bg: #dff6e8;
+  --good-text: #126434;
+  --warn-bg: #fff0c7;
+  --warn-text: #7a4d00;
+  --bad-bg: #ffe1df;
+  --bad-text: #9b271f;
+  --neutral-bg: #e9eef5;
+  --neutral-text: #344054;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.app-header {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 28px;
+  min-height: 56px;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.nav a {
+  border-radius: 6px;
+  color: var(--muted);
+  font-weight: 650;
+  padding: 8px 10px;
+}
+
+.nav a.active,
+.nav a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.page {
+  margin: 0 auto;
+  max-width: 1320px;
+  padding: 24px;
+}
+
+.page-head {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.page-head h1 {
+  font-size: 28px;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.page-head p {
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
+.metrics {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 24px;
+}
+
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.metric-value {
+  display: block;
+  font-size: 26px;
+  font-weight: 780;
+  line-height: 1.15;
+}
+
+.metric-label {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.split {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+}
+
+.section-title {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 10px;
+}
+
+.section-title h2 {
+  font-size: 18px;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.data-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 11px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  background: #fbfcfd;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.data-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.product-link {
+  color: var(--text);
+  display: block;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.status {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.status-in_stock,
+.status-success {
+  background: var(--good-bg);
+  color: var(--good-text);
+}
+
+.status-out_of_stock,
+.status-unknown,
+.status-not_found {
+  background: var(--neutral-bg);
+  color: var(--neutral-text);
+}
+
+.status-preorder,
+.status-backorder {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.status-blocked,
+.status-error,
+.status-unavailable {
+  background: var(--bad-bg);
+  color: var(--bad-text);
+}
+
+.empty-state {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  padding: 24px;
+}
+
+.button {
+  background: var(--accent);
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 720;
+  padding: 9px 12px;
+}
+
+.button:hover {
+  background: var(--accent-strong);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.product-head {
+  align-items: start;
+  gap: 20px;
+}
+
+.product-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 220px minmax(0, 1fr);
+  margin-bottom: 24px;
+}
+
+.product-media {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  height: 220px;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.product-media img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.empty-media {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.facts {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.facts div {
+  border-bottom: 1px solid var(--border);
+  min-height: 82px;
+  padding: 14px;
+}
+
+.facts div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.facts dd {
+  font-size: 16px;
+  font-weight: 720;
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-table th {
+  width: 240px;
+}
+
+@media (max-width: 980px) {
+  .metrics,
+  .split,
+  .product-layout,
+  .facts {
+    grid-template-columns: 1fr;
+  }
+
+  .facts div:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .facts div:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    position: static;
+  }
+
+  .nav {
+    flex-wrap: wrap;
+  }
+
+  .page {
+    padding: 16px;
+  }
+
+  .page-head {
+    align-items: start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

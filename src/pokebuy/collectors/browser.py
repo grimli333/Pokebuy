@@ -5,13 +5,18 @@ import subprocess
 import sys
 import tempfile
 import time
+from urllib.parse import urlsplit
 
 import websocket
 from curl_cffi import requests as curl_requests
 
 from pokebuy.collectors.fetcher import FetchResult, is_blocked_response
 from pokebuy.config import Settings
+from pokebuy.debug import redact_headers, write_debug_artifact
+from pokebuy.logging import get_logger
 from pokebuy.models import FetchStatus
+
+LOGGER = get_logger("pokebuy.collectors.browser")
 
 
 def find_chrome() -> str:
@@ -101,41 +106,23 @@ class ChromeLauncher:
             f"--remote-debugging-port={self.port}",
             f"--user-data-dir={user_data_dir}",
             "--remote-allow-origins=*",
+            "--disable-blink-features=AutomationControlled",
             "--no-first-run",
             "--no-default-browser-check",
-            "--disable-background-networking",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-breakpad",
-            "--disable-client-side-phishing-detection",
-            "--disable-component-update",
-            "--disable-default-apps",
-            "--disable-dev-shm-usage",
-            "--disable-domain-reliability",
-            "--disable-extensions",
-            "--disable-features=AudioServiceOutOfProcess",
-            "--disable-hang-monitor",
-            "--disable-ipc-flooding-protection",
-            "--disable-notifications",
-            "--disable-offer-store-unmasked-wallet-cards",
-            "--disable-popup-blocking",
-            "--disable-print-preview",
-            "--disable-prompt-on-repost",
-            "--disable-renderer-backgrounding",
-            "--disable-setuid-sandbox",
-            "--disable-speech-api",
-            "--disable-sync",
-            "--hide-scrollbars",
-            "--ignore-gpu-blocklist",
-            "--metrics-recording-only",
-            "--mute-audio",
-            "--no-gesture-requirement",
             "--password-store=basic",
             "--use-mock-keychain",
         ]
         if self.headless:
             args.append("--headless=new")
 
+        LOGGER.debug(
+            "chrome_launch_start",
+            chrome_path=chrome_path,
+            port=self.port,
+            headless=self.headless,
+            persistent_profile=self.use_persistent_profile,
+            user_data_dir=user_data_dir,
+        )
         self.proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Wait for port to be ready
@@ -146,12 +133,14 @@ class ChromeLauncher:
                 r = curl_requests.get(f"http://127.0.0.1:{self.port}/json/version", timeout=1.0)
                 if r.status_code == 200:
                     connected = True
+                    LOGGER.debug("chrome_debug_port_ready", port=self.port)
                     break
             except Exception:
                 pass
             time.sleep(0.1)
 
         if not connected:
+            LOGGER.debug("chrome_debug_port_timeout", port=self.port)
             self.close()
             raise RuntimeError("Failed to start or connect to Chrome browser within timeout.")
 
@@ -162,6 +151,7 @@ class ChromeLauncher:
 
     def close(self) -> None:
         if self.proc:
+            LOGGER.debug("chrome_launch_close", port=self.port)
             try:
                 self.proc.terminate()
                 self.proc.wait(timeout=5.0)
@@ -187,6 +177,7 @@ class CDPClient:
         self.ws_url = ws_url
         self.ws = websocket.create_connection(ws_url, timeout=10.0)
         self.next_id = 1
+        LOGGER.debug("cdp_connect", ws_url=_redact_ws_url(ws_url))
 
     def send_command(self, method: str, params: dict[str, object] | None = None) -> int:
         cmd_id = self.next_id
@@ -197,6 +188,7 @@ class CDPClient:
         }
         if params is not None:
             payload["params"] = params
+        LOGGER.debug("cdp_send", cmd_id=cmd_id, method=method, params=_summarize_cdp_params(params))
         self.ws.send(json.dumps(payload))
         return cmd_id
 
@@ -210,6 +202,12 @@ class CDPClient:
                     continue
                 msg = json.loads(msg_str)
                 if msg.get("id") == cmd_id:
+                    LOGGER.debug(
+                        "cdp_response",
+                        cmd_id=cmd_id,
+                        keys=sorted(str(key) for key in msg.keys()),
+                        has_error="error" in msg,
+                    )
                     return dict(msg)
             except websocket.WebSocketTimeoutException:
                 continue
@@ -249,6 +247,7 @@ class CDPClient:
         self.execute("Page.enable")
 
         nav_cmd_id = self.send_command("Page.navigate", {"url": url})
+        LOGGER.debug("cdp_navigation_start", url=url, nav_cmd_id=nav_cmd_id)
 
         start_time = time.time()
         main_document_response = None
@@ -279,11 +278,26 @@ class CDPClient:
             if method == "Network.responseReceived":
                 resp_type = params.get("type")
                 response = params.get("response", {})
-                if resp_type == "Document":
+                if (
+                    resp_type == "Document"
+                    and isinstance(response, dict)
+                    and _is_top_level_document_response(str(response.get("url", "")), url)
+                ):
                     main_document_response = response
+                    LOGGER.debug(
+                        "cdp_document_response",
+                        url=response.get("url"),
+                        status=response.get("status"),
+                        headers=redact_headers(
+                            {str(k): str(v) for k, v in response.get("headers", {}).items()}
+                        )
+                        if isinstance(response.get("headers"), dict)
+                        else {},
+                    )
 
             if method == "Page.loadEventFired":
                 load_fired = True
+                LOGGER.debug("cdp_load_event_fired", url=url)
                 break
 
         # Fallback load state checking
@@ -292,6 +306,7 @@ class CDPClient:
             while time.time() - poll_start < 10.0:
                 try:
                     state = self.evaluate("document.readyState")
+                    LOGGER.debug("cdp_ready_state", state=state)
                     if state == "complete":
                         load_fired = True
                         break
@@ -314,10 +329,18 @@ class CDPClient:
             headers = main_document_response.get("headers", {})
             headers = {str(k): str(v) for k, v in headers.items()}
 
+        LOGGER.debug(
+            "cdp_navigation_complete",
+            requested_url=url,
+            final_url=final_url,
+            status_code=status_code,
+            load_fired=load_fired,
+        )
         return status_code, headers, final_url
 
     def close(self) -> None:
         try:
+            LOGGER.debug("cdp_close", ws_url=_redact_ws_url(self.ws_url))
             self.ws.close()
         except Exception:
             pass
@@ -345,6 +368,13 @@ class PokemonCenterBrowserFetcher:
 
     def fetch(self, url: str) -> FetchResult:
         timeout_seconds = self._settings.browser_timeout_seconds
+        LOGGER.debug(
+            "browser_fetch_start",
+            url=url,
+            headless=self._headless,
+            manual_wait_seconds=self._manual_wait_seconds,
+            persistent_profile=self._use_persistent_profile,
+        )
 
         try:
             with ChromeLauncher(
@@ -355,6 +385,7 @@ class PokemonCenterBrowserFetcher:
                 tab_data = json.loads(resp.text)
                 tab_id = tab_data["id"]
                 ws_url = tab_data["webSocketDebuggerUrl"]
+                LOGGER.debug("browser_tab_created", tab_id=tab_id)
 
                 # 2. Connect to tab websocket
                 client = CDPClient(ws_url)
@@ -366,7 +397,13 @@ class PokemonCenterBrowserFetcher:
 
                     # 4. Manual wait if needed
                     if self._manual_wait_seconds > 0:
+                        LOGGER.debug(
+                            "browser_manual_wait_start",
+                            seconds=self._manual_wait_seconds,
+                            url=final_url,
+                        )
                         time.sleep(self._manual_wait_seconds)
+                        LOGGER.debug("browser_manual_wait_end", url=final_url)
 
                     # 5. Extract HTML
                     try:
@@ -382,6 +419,20 @@ class PokemonCenterBrowserFetcher:
                             final_url = href_val
                     except Exception:
                         pass
+                    html_path = write_debug_artifact(
+                        self._settings,
+                        prefix=f"browser-{status_code or 'unknown'}",
+                        suffix=".html",
+                        content=html,
+                        redact=self._settings.debug_redact_html,
+                    )
+                    LOGGER.debug(
+                        "browser_html_captured",
+                        url=final_url,
+                        status_code=status_code,
+                        body_length=len(html),
+                        debug_html_path=str(html_path) if html_path else None,
+                    )
                 finally:
                     client.close()
                     # 7. Close the tab
@@ -389,9 +440,11 @@ class PokemonCenterBrowserFetcher:
                         curl_requests.get(
                             f"http://127.0.0.1:{launcher.port}/json/close/{tab_id}", timeout=5.0
                         )
+                        LOGGER.debug("browser_tab_closed", tab_id=tab_id)
                     except Exception:
                         pass
         except Exception as exc:
+            LOGGER.debug("browser_fetch_exception", url=url, error=str(exc))
             return FetchResult(
                 url=url,
                 status_code=None,
@@ -402,6 +455,7 @@ class PokemonCenterBrowserFetcher:
             )
 
         if status_code == 404:
+            LOGGER.debug("browser_fetch_not_found", url=final_url)
             return FetchResult(
                 url=final_url,
                 status_code=status_code,
@@ -411,6 +465,12 @@ class PokemonCenterBrowserFetcher:
                 headers=headers,
             )
         if status_code is not None and is_blocked_response(status_code, headers, html):
+            LOGGER.debug(
+                "browser_fetch_blocked",
+                url=final_url,
+                status_code=status_code,
+                headers=redact_headers(headers),
+            )
             return FetchResult(
                 url=final_url,
                 status_code=status_code,
@@ -420,6 +480,7 @@ class PokemonCenterBrowserFetcher:
                 headers=headers,
             )
         if status_code is not None and status_code >= 400:
+            LOGGER.debug("browser_fetch_error_status", url=final_url, status_code=status_code)
             return FetchResult(
                 url=final_url,
                 status_code=status_code,
@@ -428,6 +489,7 @@ class PokemonCenterBrowserFetcher:
                 fetch_error=f"product page returned HTTP {status_code}",
                 headers=headers,
             )
+        LOGGER.debug("browser_fetch_success", url=final_url, status_code=status_code or 200)
         return FetchResult(
             url=final_url,
             status_code=status_code or 200,
@@ -449,6 +511,13 @@ def warm_pokemon_center_session(
     settings.browser_profile_dir.mkdir(parents=True, exist_ok=True)
     settings.browser_state_dir.mkdir(parents=True, exist_ok=True)
     storage_state_path = settings.browser_state_dir / "pokemon-center-storage-state.json"
+    LOGGER.debug(
+        "warm_session_start",
+        url=url,
+        headless=headless_value,
+        manual_wait_seconds=manual_wait_seconds,
+        profile_dir=str(settings.browser_profile_dir),
+    )
 
     try:
         with ChromeLauncher(settings, headless_value, use_persistent_profile=True) as launcher:
@@ -465,14 +534,18 @@ def warm_pokemon_center_session(
 
                 # Wait for user input / manual wait
                 if manual_wait_seconds > 0:
+                    LOGGER.debug("warm_session_manual_wait_start", seconds=manual_wait_seconds)
                     time.sleep(manual_wait_seconds)
+                    LOGGER.debug("warm_session_manual_wait_end")
 
                 # Extract cookies via CDP
                 cookies_result = client.execute("Network.getAllCookies")
-                cookies = cookies_result.get("cookies", [])
+                cookies_value = cookies_result.get("cookies", [])
+                cookies = cookies_value if isinstance(cookies_value, list) else []
+                LOGGER.debug("warm_session_cookies_captured", count=len(cookies))
 
                 formatted_cookies = []
-                for cookie in cookies:  # type: ignore
+                for cookie in cookies:
                     formatted_cookies.append(
                         {
                             "name": cookie.get("name"),
@@ -516,6 +589,11 @@ def warm_pokemon_center_session(
 
                 with open(storage_state_path, "w", encoding="utf-8") as f:
                     json.dump(storage_state, f, indent=2)
+                LOGGER.debug(
+                    "warm_session_storage_state_written",
+                    path=str(storage_state_path),
+                    local_storage_count=len(formatted_local_storage),
+                )
             finally:
                 client.close()
                 try:
@@ -525,9 +603,38 @@ def warm_pokemon_center_session(
                 except Exception:
                     pass
     except Exception as exc:
+        LOGGER.debug("warm_session_exception", url=url, error=str(exc))
         return f"session warm failed: {exc}"
 
     return (
         f"saved browser profile at {settings.browser_profile_dir}; "
         f"storage state at {storage_state_path}"
+    )
+
+
+def _redact_ws_url(ws_url: str) -> str:
+    if "/" not in ws_url:
+        return ws_url
+    return ws_url.rsplit("/", maxsplit=1)[0] + "/[redacted]"
+
+
+def _summarize_cdp_params(params: dict[str, object] | None) -> dict[str, object] | None:
+    if params is None:
+        return None
+    summarized = dict(params)
+    if "expression" in summarized:
+        expression = str(summarized["expression"])
+        summarized["expression"] = expression[:120] + ("..." if len(expression) > 120 else "")
+    return summarized
+
+
+def _is_top_level_document_response(response_url: str, requested_url: str) -> bool:
+    if requested_url == "about:blank":
+        return response_url == requested_url
+    response_parts = urlsplit(response_url)
+    requested_parts = urlsplit(requested_url)
+    return (
+        response_parts.scheme == requested_parts.scheme
+        and response_parts.netloc == requested_parts.netloc
+        and response_parts.path == requested_parts.path
     )

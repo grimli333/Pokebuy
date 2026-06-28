@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - PokeBuy{% endblock %}
+{% block content %}
+  <section class="page-head">
+    <div>
+      <h1>Dashboard</h1>
+      <p>Current product state and recent collector activity.</p>
+    </div>
+  </section>
+
+  <section class="metrics" aria-label="Summary">
+    <div class="metric">
+      <span class="metric-value">{{ stats.product_count }}</span>
+      <span class="metric-label">Products</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value">{{ stats.snapshot_count }}</span>
+      <span class="metric-label">Snapshots</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value">{{ stats.in_stock_count }}</span>
+      <span class="metric-label">In Stock Events</span>
+    </div>
+    <div class="metric">
+      <span class="metric-value">{{ stats.blocked_or_error_count }}</span>
+      <span class="metric-label">Blocked or Error</span>
+    </div>
+  </section>
+
+  <section class="split">
+    <div>
+      <div class="section-title">
+        <h2>Current Products</h2>
+        <a href="/products">View all</a>
+      </div>
+      {% include "partials/product_table.html" %}
+    </div>
+    <div>
+      <div class="section-title">
+        <h2>Recent Events</h2>
+      </div>
+      {% include "partials/event_table.html" %}
+    </div>
+  </section>
+{% endblock %}

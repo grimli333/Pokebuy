@@ -1,10 +1,10 @@
 # PokeBuy Progress
 
-Last updated: 2026-06-27
+Last updated: 2026-06-28
 
 ## Current Status
 
-PokeBuy has completed Phase 0 foundation work and started Milestone 1. Direct HTTP product scraping, rendered-browser scraping, persistent browser profile warming, parser fixtures, SQLite persistence, migrations, and the `scrape-url` CLI are implemented. Reliable live Pokemon Center product extraction still needs verification with a warmed browser profile. Scheduler polling, notifications, cart automation, and the web UI have not been implemented yet.
+PokeBuy has completed Phase 0 foundation work and is late in Milestone 1. Direct HTTP product scraping with `curl_cffi`, Chrome/CDP rendered-browser scraping, persistent browser profile warming, parser fixtures, SQLite persistence, migrations, and the `scrape-url` CLI are implemented. Warmed-profile browser collection has been verified against a live Pokemon Center product page. A first read-only FastAPI web UI is implemented. Scheduler polling, notifications, and cart automation have not been implemented yet.
 
 Completed work:
 
@@ -14,29 +14,34 @@ Completed work:
 - Created Python package scaffold under `src/pokebuy`.
 - Added `pyproject.toml`, `uv.lock`, `ruff`, `mypy`, and `pytest` setup.
 - Added environment-backed settings in `pokebuy.config`.
-- Added structured logging setup in `pokebuy.logging`.
+- Added structured logging setup in `pokebuy.logging`, with stderr output and optional `pokebuy.log` file output enabled by default.
 - Added `.env.example`, `.gitignore`, and `README.md`.
 - Added import and configuration smoke tests.
 - Added Pydantic domain models for product observations and persisted snapshots.
 - Added SQLAlchemy product, variant, snapshot, and scheduler run tables.
 - Added Alembic initial migration.
 - Added product URL normalization for Pokemon Center product URLs.
-- Added `httpx` fetcher with blocked-response detection.
+- Added `curl_cffi` fetcher with blocked-response detection.
+- Added fetch retry/backoff handling and bounded `Retry-After` support for rate-limited or transient responses.
+- Added configurable debug logging, returned-HTML printing, and debug artifact output for collector troubleshooting.
 - Added Pokemon Center HTML/JSON-LD parser with fixture tests.
-- Added Playwright rendered-browser collector with headed/manual-wait support.
+- Added sanitized `unknown`, `not_found`, `in_stock`, `out_of_stock`, and blocked-response fixture coverage.
+- Added Chrome/CDP rendered-browser collector with headed/manual-wait support.
 - Added `pokebuy warm-session` to capture a persistent browser profile and storage state after manual login/challenge handling.
+- Verified warmed-profile browser scraping against the provided live Pokemon Center product URL.
 - Added SQLite repository persistence for successful and failed snapshots.
 - Added `pokebuy migrate` and `pokebuy scrape-url` CLI commands.
+- Added initial FastAPI/Jinja web UI with dashboard, product list, product detail/history, settings, static CSS, `/healthz`, and `pokebuy web`.
 
 ## Milestone Progress
 
 | Milestone | Status | Notes |
 | --- | --- | --- |
 | Phase 0: Project foundation | Complete | Package scaffold, config, logging, tooling, and smoke tests are in place. |
-| Milestone 1: Reading Pokemon Center data | In progress | Direct HTTP collector, Playwright collector, persistent profile warming, parser fixtures, SQLite persistence, migrations, and CLI are implemented. Live product extraction still needs warmed-profile verification. |
+| Milestone 1: Reading Pokemon Center data | In progress | curl-cffi direct HTTP collector, retry/rate-limit handling, Chrome/CDP collector, persistent profile warming, parser fixtures, SQLite persistence, migrations, CLI, and live warmed-profile extraction are implemented. Scheduler polling still needs implementation. |
 | Milestone 2: Triggering notifications | Not started | Email is first, followed by Discord bot notifications. |
-| Milestone 3: Login and cart assistance | Not started | Designed as Playwright-based and explicitly opt-in. Should also discover related Pokemon card products. |
-| Milestone 4: Graphical web UI | Not started | Designed as FastAPI, Jinja, HTMX, and charting pages. |
+| Milestone 3: Login and cart assistance | Not started | Designed around Chrome/CDP browser control and explicitly opt-in. Should also discover related Pokemon card products. |
+| Milestone 4: Graphical web UI | Started | Initial FastAPI/Jinja dashboard, products, product detail/history, settings, static CSS, `/healthz`, and `pokebuy web` are implemented. Watchlist forms, event filters, charts, notification settings, and session controls remain. |
 | Milestone 5: Prediction and advanced automation | Not started | Deferred until enough historical data exists. |
 
 ## Assumptions Made
@@ -45,7 +50,7 @@ Completed work:
 - The initial utility can be single-user and local-first.
 - SQLite is acceptable indefinitely unless future deployment pressure requires another store.
 - PostgreSQL should be deferred until hosted or multi-process requirements justify it.
-- Playwright is the right tool for authenticated browser flows.
+- Chrome/CDP is the current browser-control path for authenticated and rendered flows.
 - Direct HTTP collection should be used where normal page behavior exposes sufficient product data.
 - Automated checkout completion should remain disabled until explicitly approved and redesigned with additional safety controls.
 - Username/password storage is acceptable if it works, but it must stay outside source control and should use OS keychain or encrypted local storage.
@@ -78,9 +83,12 @@ Latest verification:
 - `uv run ruff check .`: passed.
 - `uv run ruff format --check .`: passed.
 - `uv run mypy`: passed.
-- `uv run pytest`: passed, 12 tests.
+- `.venv/bin/pytest`: passed, 22 tests.
 - Direct HTTP against both provided Pokemon Center URLs returned bot-protection HTML and was persisted as `blocked` snapshots.
-- Browser scraping launches through Playwright. In headless verification, Pokemon Center still returned non-product HTML, so the persisted snapshot remains `unknown` until the collector can use a cleared session or manual challenge handling.
+- `pokebuy warm-session --no-headless --manual-wait-seconds 300 "https://www.pokemoncenter.com/"`: captured 53 cookies and 17 localStorage entries in the persistent browser profile.
+- `pokebuy scrape-url --collector browser --use-profile --no-headless --manual-wait-seconds 5 <provided product URL>`: returned `fetch_status=success`, `availability=out_of_stock`, `price_cents=999`, and the correct product title.
+- Fixed a false-positive block classification caused by normal product pages referencing DataDome assets.
+- Web route tests for health, empty dashboard, and persisted product rendering passed.
 
 ## Open Questions for User
 
@@ -90,7 +98,6 @@ Latest verification:
 
 Continue Milestone 1 from `doc/TODO.md`:
 
-- Add sanitized `unknown` and `not_found` parser/fetch fixtures.
-- Use `pokebuy warm-session` to clear/login in the persistent profile, then retry `scrape-url --collector browser --use-profile`.
-- Improve browser collection around queue/challenge/session reuse based on the warmed-profile result.
-- Keep scheduler and notification behavior deferred until the collection path is reliable enough.
+- Implement scheduler polling for the configured specific product URLs.
+- Expand the web UI with watchlist controls once watchlist storage exists.
+- Keep notification behavior deferred until the collection path is wired through scheduler runs.

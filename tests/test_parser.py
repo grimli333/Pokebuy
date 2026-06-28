@@ -33,6 +33,17 @@ def test_parse_out_of_stock_product_fixture() -> None:
     assert observation.price_cents == 999
 
 
+def test_parse_unknown_product_fixture() -> None:
+    observation = PokemonCenterProductParser().parse_success(
+        "https://www.pokemoncenter.com/product/10-00000-000/pokemon-tcg-mystery-product",
+        fixture("product_unknown.html"),
+    )
+
+    assert observation.source_product_id == "10-00000-000"
+    assert observation.availability == Availability.UNKNOWN
+    assert observation.price_cents == 1299
+
+
 def test_parse_blocked_fetch_result() -> None:
     fetch = FetchResult(
         url="https://www.pokemoncenter.com/product/10-10318-142/example",
@@ -51,3 +62,23 @@ def test_parse_blocked_fetch_result() -> None:
     assert observation.fetch_status == FetchStatus.BLOCKED
     assert observation.availability == Availability.UNKNOWN
     assert observation.raw_state["response_headers"] == {"x-datadome": "protected"}
+
+
+def test_parse_not_found_fetch_result() -> None:
+    fetch = FetchResult(
+        url="https://www.pokemoncenter.com/product/10-404/not-found",
+        status_code=404,
+        text="<html>not found</html>",
+        fetch_status=FetchStatus.NOT_FOUND,
+        fetch_error="product page returned 404",
+        headers={},
+    )
+
+    observation = PokemonCenterProductParser().parse_fetch_result(
+        "https://www.pokemoncenter.com/product/10-404/not-found",
+        fetch,
+    )
+
+    assert observation.fetch_status == FetchStatus.NOT_FOUND
+    assert observation.availability == Availability.UNKNOWN
+    assert observation.raw_state["http_status"] == 404

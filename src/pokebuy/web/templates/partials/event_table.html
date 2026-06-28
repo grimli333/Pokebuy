@@ -1,0 +1,31 @@
+{% if events %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Observed</th>
+          <th>Product</th>
+          <th>Availability</th>
+          <th>Price</th>
+          <th>Fetch</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in events %}
+          <tr>
+            <td>{{ event.observed_at|datetime }}</td>
+            <td>
+              <a class="product-link" href="/products/{{ event.product_id }}">{{ event.product_title or event.source_product_id }}</a>
+              <span class="muted">{{ event.source_product_id }}</span>
+            </td>
+            <td><span class="status status-{{ event.availability }}">{{ event.availability|label }}</span></td>
+            <td>{{ event.price_cents|money(event.currency) }}</td>
+            <td><span class="status status-{{ event.fetch_status }}">{{ event.fetch_status|label }}</span></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty-state">No events have been recorded yet.</div>
+{% endif %}

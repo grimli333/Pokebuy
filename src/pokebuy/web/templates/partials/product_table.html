@@ -1,0 +1,31 @@
+{% if products %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Availability</th>
+          <th>Price</th>
+          <th>Fetch</th>
+          <th>Observed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+          <tr>
+            <td>
+              <a class="product-link" href="/products/{{ product.id }}">{{ product.title or product.source_product_id }}</a>
+              <span class="muted">{{ product.source_product_id }}</span>
+            </td>
+            <td><span class="status status-{{ product.availability }}">{{ product.availability|label }}</span></td>
+            <td>{{ product.price_cents|money(product.currency) }}</td>
+            <td><span class="status status-{{ product.fetch_status }}">{{ product.fetch_status|label }}</span></td>
+            <td>{{ product.observed_at|datetime }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty-state">No product snapshots have been saved yet.</div>
+{% endif %}

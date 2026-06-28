@@ -25,9 +25,23 @@ class Settings(BaseSettings):
 
     poll_min_seconds: float = 30.0
     http_timeout_seconds: float = 20.0
+    http_max_attempts: int = 2
+    http_retry_backoff_seconds: float = 1.0
+    http_retry_after_max_seconds: float = 60.0
     browser_timeout_seconds: float = 45.0
     browser_manual_wait_seconds: float = 0.0
     browser_headless: bool = False
+
+    web_host: str = "127.0.0.1"
+    web_port: int = 8000
+
+    log_file_enabled: bool = True
+    log_file_path: Path = Path("pokebuy.log")
+
+    debug_enabled: bool = True
+    debug_print_html: bool = True
+    debug_redact_html: bool = False
+    debug_dir: Path = Path("debug")
 
     discord_webhook_url: SecretStr | None = None
     smtp_host: str | None = None
@@ -43,12 +57,30 @@ class Settings(BaseSettings):
     @field_validator(
         "poll_min_seconds",
         "http_timeout_seconds",
+        "http_retry_backoff_seconds",
+        "http_retry_after_max_seconds",
         "browser_timeout_seconds",
     )
     @classmethod
     def positive_duration(cls, value: float) -> float:
         if value <= 0:
             msg = "duration must be greater than zero"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("http_max_attempts")
+    @classmethod
+    def positive_attempts(cls, value: int) -> int:
+        if value <= 0:
+            msg = "attempt count must be greater than zero"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("web_port")
+    @classmethod
+    def valid_port(cls, value: int) -> int:
+        if value <= 0 or value > 65535:
+            msg = "web port must be between 1 and 65535"
             raise ValueError(msg)
         return value
 

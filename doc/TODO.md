@@ -12,7 +12,7 @@ This task list follows the milestones in `doc/DESIGN.md`. Keep tasks small enoug
 - [x] Add base `README.md` with setup, local run, and safety notes.
 - [x] Create `pokebuy.config` using `pydantic-settings`.
 - [x] Create a sample `.env.example` with documented variables.
-- [x] Add structured logging setup.
+- [x] Add structured logging setup with optional file output.
 - [x] Add first smoke test that imports the package.
 
 Acceptance checks:
@@ -30,17 +30,19 @@ Acceptance checks:
 - [x] Add Alembic migrations.
 - [x] Implement database session management and repositories.
 - [x] Implement product URL normalization.
-- [x] Implement `httpx` product fetcher with timeout, retries, and rate-limit hooks.
+- [x] Implement `curl_cffi` product fetcher with timeout and blocked-response detection.
+- [x] Add collector retry and rate-limit hooks.
+- [x] Add toggleable debug logging and returned-HTML artifacts for collector troubleshooting.
 - [x] Implement parser interface for normalized `ProductObservation` output.
 - [x] Add first Pokemon Center product parser using fixture-driven tests.
-- [x] Add Playwright fallback collector for rendered page inspection.
+- [x] Add Chrome/CDP fallback collector for rendered page inspection.
 - [x] Add persistent browser profile warm-up command for manual login/challenge capture.
 - [x] Store snapshot fetch status and error details.
 - [x] Add CLI command `pokebuy scrape-url <url>`.
 - [x] Add sanitized fixtures for `in_stock` and `out_of_stock` states.
 - [x] Add fixture coverage for bot-protection `blocked` responses.
-- [ ] Add sanitized fixtures for `unknown` and `not_found` states.
-- [ ] Verify live Pokemon Center browser collection using the warmed persistent profile.
+- [x] Add sanitized fixtures for `unknown` and `not_found` states.
+- [x] Verify live Pokemon Center browser collection using the warmed persistent profile.
 - [x] Keep Milestone 1 product monitoring limited to specific product URLs.
 
 Acceptance checks:
@@ -75,9 +77,9 @@ Acceptance checks:
 
 ## Phase 3: Login and Cart Assistance
 
-- [ ] Add Playwright browser session manager.
+- [ ] Add Chrome/CDP browser session manager.
 - [ ] Add storage-state directory management outside source control.
-- [ ] Implement `pokebuy login-session` to open a browser and save session state.
+- [ ] Extend `pokebuy warm-session` or add a dedicated login command for account/session validation.
 - [ ] Implement session validation flow.
 - [ ] Add `BrowserSession` database model.
 - [ ] Add add-to-cart workflow for a product URL and optional variant.
@@ -97,17 +99,17 @@ Acceptance checks:
 
 ## Phase 4: Web UI
 
-- [ ] Add FastAPI app scaffold.
-- [ ] Add Jinja template layout and static asset structure.
-- [ ] Add HTMX support for form and table updates.
-- [ ] Add dashboard page showing watched products, current state, latest events, and notification failures.
-- [ ] Add products page with product detail and snapshot history.
+- [x] Add FastAPI app scaffold.
+- [x] Add Jinja template layout and static asset structure.
+- [x] Add HTMX support for form and table updates.
+- [x] Add dashboard page showing watched products, current state, latest events, and notification failures.
+- [x] Add products page with product detail and snapshot history.
 - [ ] Add watchlist page with add/edit/disable controls.
 - [ ] Add events page with filters.
 - [ ] Add analytics page with stock calendar and price history charts.
 - [ ] Add notifications settings page with test actions.
-- [ ] Add sessions page for login-session status and validation.
-- [ ] Add settings page with masked sensitive values.
+- [ ] Add sessions page for warm-session/login status and validation.
+- [x] Add settings page with masked sensitive values.
 - [ ] Add CSRF protection before non-localhost exposure.
 - [ ] Add `pokebuy web` CLI command.
 
@@ -139,7 +141,7 @@ Acceptance checks:
 
 - [ ] Add redaction helpers for logs and diagnostics.
 - [ ] Add global polling minimum and jitter.
-- [ ] Add health endpoint for web process.
+- [x] Add health endpoint for web process.
 - [ ] Add scheduler run status tracking.
 - [ ] Add backup/export command for SQLite database.
 - [ ] Add documentation for local-only mode.

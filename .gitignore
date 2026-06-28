@@ -162,6 +162,8 @@ venv.bak/
 .env.*
 !.env.example
 .pokebuy/
+debug/
+pokebuy.log
 *.sqlite
 *.sqlite3
 *.db

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Products - PokeBuy{% endblock %}
+{% block content %}
+  <section class="page-head">
+    <div>
+      <h1>Products</h1>
+      <p>Latest persisted state for each tracked Pokemon Center product.</p>
+    </div>
+  </section>
+  {% include "partials/product_table.html" %}
+{% endblock %}

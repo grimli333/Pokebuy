@@ -49,12 +49,11 @@ The first production-quality version should prioritize reliable stock monitoring
 - `ruff` for linting and formatting
 - `mypy` or `pyright` for type checking
 - `pytest` for unit and integration tests
-- `pytest-playwright` for browser automation tests
 
 ### Browser and Scraping
 
-- `playwright` for browser-controlled flows such as login, cart, and checkout.
-- `httpx` for direct HTTP requests where pages or JSON endpoints can be safely fetched without browser state.
+- `curl_cffi` for direct HTTP requests where pages or JSON endpoints can be safely fetched with browser-compatible TLS and HTTP behavior.
+- System Chrome or Chromium controlled through the DevTools Protocol (CDP), using `websocket-client`, for browser-backed flows such as manual session warming, login, rendered page inspection, cart assistance, and queue observation.
 - `selectolax` or `beautifulsoup4` for parsing HTML when structured data is not available.
 - `pydantic` for normalized product, stock, notification, and configuration models.
 
@@ -98,7 +97,7 @@ PokeBuy is organized into clear modules:
 - `pokebuy.models`: Pydantic domain models for products, snapshots, events, watchlists, and notifications.
 - `pokebuy.db`: SQLAlchemy models, repositories, migrations, and database session management.
 - `pokebuy.collectors`: product discovery, page fetchers, parsers, and stock snapshot creation.
-- `pokebuy.browser`: Playwright browser session management, login, cart, and checkout helpers.
+- `pokebuy.collectors.browser`: Chrome/CDP session management, rendered page collection, profile warming, login, cart, and checkout helpers.
 - `pokebuy.scheduler`: recurring jobs for polling watchlists and refreshing product data.
 - `pokebuy.analysis`: stock-event detection, trend analysis, and prediction logic.
 - `pokebuy.notifications`: email, Discord, message rendering, throttling, and delivery logs.
@@ -278,7 +277,7 @@ Collectors should prefer the least fragile source that provides enough data:
 
 1. Structured data embedded in product pages.
 2. Public JSON endpoints used by the page, if visible through normal site behavior.
-3. Rendered DOM inspection through Playwright.
+3. Rendered DOM inspection through system Chrome controlled over CDP.
 4. Text and selector fallback only when no structured source exists.
 
 If Pokemon Center does not expose a stable structured path, PokeBuy can fall back to full rendered-browser control of the normal website UI. This is treated as an automation fallback, not as permission to bypass CAPTCHA, queueing, rate limits, or account controls.
@@ -369,7 +368,7 @@ Do not build opaque machine learning before enough clean event data exists. Star
 
 ## 12. Browser Automation Design
 
-Browser automation uses Playwright and a persistent browser storage state.
+Browser automation uses system Chrome or Chromium controlled through CDP plus a persistent browser profile and exported storage state.
 
 Supported actions:
 
@@ -426,7 +425,7 @@ Provide a CLI for setup and automation:
 - `pokebuy watch-once`: poll due watchlist items once.
 - `pokebuy worker`: run scheduler and background jobs.
 - `pokebuy web`: run FastAPI app.
-- `pokebuy login-session`: open browser and save storage state.
+- `pokebuy warm-session`: open Chrome with the persistent PokeBuy profile and save storage state after manual login or challenge handling.
 - `pokebuy test-notification`: send a test email or Discord message.
 
 Use `typer` for CLI implementation.
@@ -439,9 +438,21 @@ Environment variables:
 - `POKEBUY_DATABASE_URL`: SQLAlchemy database URL
 - `POKEBUY_SECRET_KEY`: local encryption/signing key
 - `POKEBUY_DATA_DIR`: path for runtime data
-- `POKEBUY_BROWSER_STATE_DIR`: path for Playwright storage state
+- `POKEBUY_BROWSER_STATE_DIR`: path for exported browser storage state
+- `POKEBUY_BROWSER_PROFILE_DIR`: path for the persistent Chrome profile used by CDP collection
 - `POKEBUY_POLL_MIN_SECONDS`: global minimum poll interval
 - `POKEBUY_HTTP_TIMEOUT_SECONDS`: request timeout
+- `POKEBUY_HTTP_MAX_ATTEMPTS`: maximum direct HTTP fetch attempts
+- `POKEBUY_HTTP_RETRY_BACKOFF_SECONDS`: base retry backoff for transient direct HTTP failures
+- `POKEBUY_HTTP_RETRY_AFTER_MAX_SECONDS`: maximum delay honored from `Retry-After`
+- `POKEBUY_WEB_HOST`: web UI bind host, default `127.0.0.1`
+- `POKEBUY_WEB_PORT`: web UI bind port, default `8000`
+- `POKEBUY_LOG_FILE_ENABLED`: enable structured file logging
+- `POKEBUY_LOG_FILE_PATH`: path for the structured log file, default `pokebuy.log`
+- `POKEBUY_DEBUG_ENABLED`: enable structured debug logs and debug artifacts
+- `POKEBUY_DEBUG_PRINT_HTML`: print returned HTML to stderr while debug is enabled
+- `POKEBUY_DEBUG_REDACT_HTML`: redact known challenge cookie values from debug HTML output
+- `POKEBUY_DEBUG_DIR`: path for debug artifacts such as returned HTML
 - `POKEBUY_DISCORD_WEBHOOK_URL`: optional Discord webhook
 - `POKEBUY_SMTP_HOST`: SMTP host
 - `POKEBUY_SMTP_PORT`: SMTP port
@@ -458,8 +469,11 @@ Files and directories:
 
 - `.env`: local development config, ignored by git
 - `.pokebuy/`: default local runtime directory
-- `.pokebuy/browser-state/`: Playwright storage state, ignored by git
+- `.pokebuy/browser-state/`: exported browser storage state, ignored by git
+- `.pokebuy/browser-profile/`: persistent Chrome profile, ignored by git
 - `.pokebuy/logs/`: local logs, ignored by git
+- `pokebuy.log`: default structured log file, ignored by git
+- `debug/`: local debug artifacts such as returned HTML, ignored by git if configured locally
 
 ## 16. Security and Privacy
 
@@ -476,12 +490,14 @@ Files and directories:
 ## 17. Reliability and Observability
 
 - Use structured logs with request/job IDs.
+- Write structured logs to stderr and optionally to `pokebuy.log`; file logging is enabled by default for local debugging.
+- Emit collector debug logs for attempts, retry decisions, browser/CDP navigation, status codes, redacted headers, and debug artifact paths.
 - Persist collector errors and notification failures.
 - Track scheduler run status and duration.
 - Add retry policies with bounded attempts and backoff.
 - Add health endpoints for web and worker processes.
 - Keep a manual "poll now" action for debugging.
-- Add screenshots or HTML excerpts for failing Playwright flows when safe and redacted.
+- Add screenshots or HTML excerpts for failing browser/CDP flows when safe and redacted.
 
 ## 18. Testing Strategy
 
@@ -504,8 +520,9 @@ Files and directories:
 
 ### Browser Tests
 
-- Playwright smoke tests against saved fixture pages.
+- Chrome/CDP smoke tests against saved fixture pages or benign local/test pages.
 - Live Pokemon Center browser tests only when explicitly enabled with an environment flag.
+- Chrome/CDP tests require a local Chrome or Chromium install and may need permissions to launch that browser.
 - Login/cart tests should be manual or opt-in because they require credentials and real site state.
 
 ### Fixture Strategy
@@ -555,7 +572,7 @@ Exit criteria:
 
 Deliverables:
 
-- Playwright browser session manager.
+- Chrome/CDP browser session manager.
 - Manual login flow and saved storage state.
 - Session validation.
 - Add-to-cart workflow for watched product.

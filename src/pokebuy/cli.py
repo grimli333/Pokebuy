@@ -7,12 +7,14 @@ from alembic import command
 from alembic.config import Config
 
 from pokebuy.collectors.browser import warm_pokemon_center_session
-from pokebuy.config import get_settings
+from pokebuy.config import Settings, get_settings
 from pokebuy.db.models import Base
 from pokebuy.db.repository import ProductRepository
 from pokebuy.db.session import create_db_engine, create_session_factory, session_scope
+from pokebuy.debug import maybe_print_debug_html
 from pokebuy.logging import configure_logging
 from pokebuy.scraper import CollectorMode, collect_product_url
+from pokebuy.web.app import create_app
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -69,12 +71,17 @@ def scrape_url(
         Path | None,
         typer.Option(help="Write the raw returned HTML to this file"),
     ] = None,
+    debug: Annotated[
+        bool | None,
+        typer.Option(help="Override POKEBUY_DEBUG_ENABLED for this run"),
+    ] = None,
     log_level: Annotated[str, typer.Option(help="Logging level")] = "WARNING",
 ) -> None:
     """Fetch one product URL, persist a snapshot, and print normalized output."""
 
-    configure_logging(log_level)
     settings = get_settings()
+    _apply_debug_override(settings, debug)
+    _configure_cli_logging(settings, log_level)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     observation, fetch = collect_product_url(
         url,
@@ -92,6 +99,8 @@ def scrape_url(
         typer.echo("----- POKEBUY RETURNED HTML BEGIN -----", err=True)
         typer.echo(fetch.text, err=True)
         typer.echo("----- POKEBUY RETURNED HTML END -----", err=True)
+    else:
+        maybe_print_debug_html(settings, fetch.text)
 
     engine = create_db_engine(settings)
     session_factory = create_session_factory(engine)
@@ -114,10 +123,17 @@ def warm_session(
         float,
         typer.Option(help="Seconds to leave the browser open for manual login/challenge work"),
     ] = 300.0,
+    debug: Annotated[
+        bool | None,
+        typer.Option(help="Override POKEBUY_DEBUG_ENABLED for this run"),
+    ] = None,
+    log_level: Annotated[str, typer.Option(help="Logging level")] = "WARNING",
 ) -> None:
     """Open a persistent browser profile and save Pokemon Center session state."""
 
     settings = get_settings()
+    _apply_debug_override(settings, debug)
+    _configure_cli_logging(settings, log_level)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     message = warm_pokemon_center_session(
         settings,
@@ -126,6 +142,43 @@ def warm_session(
         manual_wait_seconds=manual_wait_seconds,
     )
     typer.echo(message)
+
+
+@app.command("web")
+def web(
+    host: Annotated[
+        str | None,
+        typer.Option(help="Host interface for the local web UI"),
+    ] = None,
+    port: Annotated[
+        int | None,
+        typer.Option(help="Port for the local web UI"),
+    ] = None,
+    reload: Annotated[
+        bool,
+        typer.Option(help="Reload the web process when source files change"),
+    ] = False,
+    log_level: Annotated[str, typer.Option(help="Logging level")] = "INFO",
+) -> None:
+    """Run the local FastAPI web UI."""
+
+    import uvicorn
+
+    settings = get_settings()
+    _configure_cli_logging(settings, log_level)
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    web_host = host or settings.web_host
+    web_port = port or settings.web_port
+    if reload:
+        uvicorn.run(
+            "pokebuy.web.app:create_app",
+            factory=True,
+            host=web_host,
+            port=web_port,
+            reload=True,
+        )
+    else:
+        uvicorn.run(create_app(settings), host=web_host, port=web_port)
 
 
 @app.command("show-config")
@@ -141,10 +194,34 @@ def show_config() -> None:
         "browser_profile_dir": str(Path(settings.browser_profile_dir)),
         "poll_min_seconds": settings.poll_min_seconds,
         "http_timeout_seconds": settings.http_timeout_seconds,
+        "http_max_attempts": settings.http_max_attempts,
+        "http_retry_backoff_seconds": settings.http_retry_backoff_seconds,
+        "http_retry_after_max_seconds": settings.http_retry_after_max_seconds,
         "browser_timeout_seconds": settings.browser_timeout_seconds,
         "browser_manual_wait_seconds": settings.browser_manual_wait_seconds,
         "browser_headless": settings.browser_headless,
+        "web_host": settings.web_host,
+        "web_port": settings.web_port,
+        "log_file_enabled": settings.log_file_enabled,
+        "log_file_path": str(Path(settings.log_file_path)),
+        "debug_enabled": settings.debug_enabled,
+        "debug_print_html": settings.debug_print_html,
+        "debug_redact_html": settings.debug_redact_html,
+        "debug_dir": str(Path(settings.debug_dir)),
         "auto_cart_enabled": settings.auto_cart_enabled,
         "auto_checkout_enabled": settings.auto_checkout_enabled,
     }
     typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _apply_debug_override(settings: Settings, debug: bool | None) -> None:
+    if debug is not None:
+        settings.debug_enabled = debug
+
+
+def _configure_cli_logging(settings: Settings, log_level: str) -> None:
+    configure_logging(
+        "DEBUG" if settings.debug_enabled else log_level,
+        log_file_enabled=settings.log_file_enabled,
+        log_file_path=settings.log_file_path,
+    )
